@@ -112,7 +112,6 @@ ResNet.fc = nn.Linear(512, 101)  # Replace the final layer for 101 classes
 ResNet = ResNet.to(device)
 
 #12. Untrained Prediction
-torch.manual_seed(40)
 for images, labels in train_loader:
   images, labels = images.to(device), labels.to(device)
   prediction = ResNet(images)
