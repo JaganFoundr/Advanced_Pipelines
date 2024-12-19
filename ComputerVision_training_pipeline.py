@@ -4,17 +4,20 @@
 # 1. torch related libraries
 import torch
 import torch.nn as nn
-from torchvision.datasets import Food101
-import torchvision.transforms as T
+import torchvision
+#from torchvision.datasets import Food101
+#import torchvision.transforms as T
+
 import torchvision.models as models
 from torchvision.models import ResNet18_Weights
+#from torchvision.models import EfficientNet_B0_Weights
 
 #Modular Pytorch
 from Pytorch_Modules import custom_zipfile_download
 from Pytorch_Modules import torch_prebuilt_data_folder_format
 from Pytorch_Modules import plotting
 from Pytorch_Modules import datasets
-from Pytorch_Modules import custom_model_builder
+#from Pytorch_Modules import custom_model_builder
 from Pytorch_Modules import metrics
 from Pytorch_Modules import model_runtime
 
@@ -55,40 +58,89 @@ datasets.traintest_split(input_dir="data/indian-food/indian-food",
                           train_split=0.2)'''
 
 #6. Plotting non transformed(raw) random images from the whole dataset.
-plotting.plot_raw_random("data/food-101")
+plotting.plot_raw_random("data2/pizza_steak_sushi")
 
-#7. Transforming and plotting the same raw images.
+#7. Building the Custom CNN model
 
-transform = T.Compose([
-        T.Resize((224,224)),
-        T.RandomHorizontalFlip(p=0.5),
-        T.RandomRotation(10),
-        T.RandomCrop(224, padding=4),
-        T.TrivialAugmentWide(num_magnitude_bins=31),
-        T.ToTensor(),
-        T.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-        ])
+'''custom_model = custom_model_builder.CustomCNN(input_shape=3,hidden_units=32,output_shape=101)'''
 
-plotting.plot_transformed_random("path",transform=transform)
+#if using pretrained-model 
+#model 1
+ResNet = models.resnet18(weights=ResNet18_Weights.DEFAULT)
 
-#8 .Now creating the format for training and testing dataset in order to upload to the dataloader.
-test_transform=T.Compose([
-    T.Resize((64,64)),
-    T.ToTensor(),
-])
+'''# Freeze all base layers by setting requires_grad attribute to False
+for param in ResNet.parameters():
+    param.requires_grad = False'''
 
-train_data,test_data=datasets.create_dataset(train_folder="data/food-101/train",
-                                             test_folder="data/food-101/test",
+ResNet.fc = nn.Linear(512, 101)  # Replace the final layer for 101 classes
+ResNet = ResNet.to(device)
 
-                                             train_transform=transform,
-                                             test_transform=test_transform,
+'''#model 2
+EfficientNet = models.efficientnet_b0(weights=EfficientNet_B0_Weights.DEFAULT)
+
+# Freeze all base layers by setting requires_grad attribute to False
+for param in ResNet.parameters():
+    param.requires_grad = False
+
+EfficientNet.fc=nn.Linear(1408,101)
+EfficientNet=EfficientNet.to(device)'''
+
+#8. Setup pretrained weights (plenty of these available in torchvision.models)
+resnet_weights = torchvision.models.ResNet18_Weights.DEFAULT
+
+# Get transforms from weights (these are the transforms that were used to obtain the weights)
+resnet_transforms = resnet_weights.transforms() 
+print(f"Automatically created transforms: {resnet_transforms}")
+
+'''#8. Setup pretrained weights (plenty of these available in torchvision.models)
+efficientnet_weights = torchvision.models.EfficientNet_B0_Weights.DEFAULT
+
+# Get transforms from weights (these are the transforms that were used to obtain the weights)
+efficientnet_transforms = efficientnet_weights.transforms() 
+print(f"Automatically created transforms: {efficientnet_transforms}")'''
+
+#9. current model info
+batch_size=64
+summary(model=ResNet, 
+        input_size=(batch_size, 3, 224, 224),
+        col_names=["input_size", "output_size", "num_params", "trainable"],
+        col_width=20,
+        row_settings=["var_names"])
+
+'''batch_size=64
+summary(model=EfficientNet, 
+        input_size=(batch_size, 3, 224, 224),
+        col_names=["input_size", "output_size", "num_params", "trainable"],
+        col_width=20,
+        row_settings=["var_names"])'''
+
+# 10. Transforming and plotting the same raw images.
+plotting.plot_transformed_random("data2/pizza_steak_sushi",transform=resnet_transforms)
+#plotting.plot_transformed_random("data2/pizza_steak_sushi",transform=efficientnet_transforms)
+
+#11 .Now creating the format for training and testing dataset in order to upload to the dataloader.
+
+resnet_train_data,resnet_test_data=datasets.create_dataset(train_folder="data2/pizza_steak_sushi/train",
+                                             test_folder="data2/pizza_steak_sushi/test",
+
+                                             train_transform=resnet_transforms,
+                                             test_transform=resnet_transforms,
                                              
                                              target_train_transform=None,
                                              target_test_transform=None)
 
-#9. Preparing Dataloader
-train_loader,test_loader=datasets.Dataloader(train_dataset=train_data,
-                                             test_dataset=test_data,
+'''efficientnet_train_data,efficientnet_test_data=datasets.create_dataset(train_folder="data2/pizza_steak_sushi/train",
+                                             test_folder="data2/pizza_steak_sushi/test",
+
+                                             train_transform=efficientnet_transforms,
+                                             test_transform=efficientnet_transforms,
+                                             
+                                             target_train_transform=None,
+                                             target_test_transform=None)'''
+
+#12. Preparing Dataloader
+resnet_train_loader,resnet_test_loader=datasets.Dataloader(train_dataset=resnet_train_data,
+                                             test_dataset=resnet_test_data,
 
                                              batch_size=64,
                                              num_workers=os.cpu_count(),
@@ -96,77 +148,94 @@ train_loader,test_loader=datasets.Dataloader(train_dataset=train_data,
                                              train_shuffle=True,
                                              test_shuffle=False)
 
-#10. shape of the images in the train loader
-train_loader_image, labels=next(iter(train_loader))
-test_loader_image, labels=next(iter(test_loader))
+'''efficientnet_train_loader,efficientnet_test_loader=datasets.Dataloader(train_dataset=efficientnet_train_data,
+                                             test_dataset=efficientnet_test_data,
 
-train_loader_image.shape, test_loader_image.shape
+                                             batch_size=64,
+                                             num_workers=os.cpu_count(),
+                                             
+                                             train_shuffle=True,
+                                             test_shuffle=False)'''
 
-#11. Building the Custom CNN model
-
-custom_model = custom_model_builder.CustomCNN(input_shape=3,hidden_units=32,output_shape=101)
-
-#if using pretrained-model
-ResNet = models.resnet18(weights=ResNet18_Weights.DEFAULT)
-ResNet.fc = nn.Linear(512, 101)  # Replace the final layer for 101 classes
-ResNet = ResNet.to(device)
-
-#12. Untrained Prediction
-for images, labels in train_loader:
+#13. Untrained Prediction
+torch.manual_seed(41)
+for images, labels in resnet_train_loader:
   images, labels = images.to(device), labels.to(device)
   prediction = ResNet(images)
   break
 prediction[0]
 
-#13. Loss Function and Optimizer
-loss_function = nn.CrossEntropyLoss()
-opt = torch.optim.Adam(ResNet.parameters(), lr=0.001)
+'''#13. Untrained Prediction
+torch.manual_seed(40)
+for images, labels in efficientnet_train_loader:
+  images, labels = images.to(device), labels.to(device)
+  prediction = EfficientNet(images)
+  break
+prediction[0]'''
 
-#14. accuracy function
+#14. Loss Function and Optimizer
+loss_function = nn.CrossEntropyLoss()
+
+resnet_opt1 = torch.optim.Adam(ResNet.parameters(), lr=0.001)
+resnet_opt2= torch.optim.SGD(ResNet.parameters(),lr=0.001,momentum=0.9)
+
+'''efficientnet_opt1 = torch.optim.Adam(EfficientNet.parameters(), lr=0.001)
+efficientnet_opt2= torch.optim.SGD(EfficientNet.parameters(),lr=0.001,momentum=0.9)'''
+
+#15. accuracy function
 def accuracy(output, labels):
     '''# Accuracy Function'''
     _, pred = torch.max(output, dim=1)
     return torch.sum(pred == labels).item() / len(pred) * 100
 
-#15. Training the Model
+#16. Training the Model
 start_time = timer()
 
-train_losses, train_accuracies, test_losses, test_accuracies = metrics.train_and_plot(
-    13, ResNet , loss_function, train_loader, test_loader, opt, metrics=accuracy)
+experiment_configs = [
+    {
+        'model': ResNet,  # First model
+        'optimizer': resnet_opt2,
+        'epochs': 10,  # Number of epochs for model1
+        'name': 'ResNet_Food_Classifying_Exp2'
+    }
+]
+
+# Define the DataLoader for each model (train and test)
+train_loaders = [resnet_train_loader]
+test_loaders = [resnet_test_loader]
+
+# Call the training function
+metrics.train_plot_tensorboard_multiple_experiments(experiment_configs, train_loaders, test_loaders, loss_function)
 
 end_time = timer()
 model_runtime.run_time(start_time, end_time, device=device)
 
-#16. confusion matrix for both train and test
+#17. confusion matrix for both train and test
 metrics.conf_matrix_for_train(model=ResNet,
-                              image_path="data/food-101/train",
-                              train_loader=train_loader)
+                              image_path="data2/pizza_steak_sushi/train",
+                              train_loader=resnet_train_loader)
 
 metrics.conf_matrix_for_test(model=ResNet,
-                             image_path="data/food-101/test",
-                             train_loader=test_loader)
+                             image_path="data2/pizza_steak_sushi/test",
+                             test_loader=resnet_test_loader)
 
-#17. Train and Test images prediction
-metrics.train_prediction(model=ResNet,
-                        image_path="data/food-101/train",
+#18. Train and Test images prediction
+metrics.train_prediction(class_names_parent_path="data2/pizza_steak_sushi/train",model=ResNet,
+                        image_path="data2/pizza_steak_sushi/train",
                         )
 
-metrics.test_prediction(model=ResNet,
-                        image_path="data/food-101/test",
+metrics.test_prediction(class_names_parent_path="data2/pizza_steak_sushi/test",model=ResNet,
+                        image_path="data2/pizza_steak_sushi/test",
                         )
 
-#18. Saving and Loading Model
+#19. Saving and Loading Model
 torch.save(ResNet.state_dict(), "Food_Classifier.pth")
 
 load_model = ResNet
 load_model.load_state_dict(torch.load("Food_Classifier.pth"))
 
-#19. current model info
-batch_size=64
-summary(custom_model, input_size=(batch_size, 3, 224, 224))
-
 #20. Testing the custom image
-metrics.custom_image_plot(class_names_parent_path="data/food-101/train",
+metrics.custom_image_plot(class_names_parent_path="data2/pizza_steak_sushi/test",
                           image_path="data/food-101/pizza.jpg",
                           device=device,
                           model=ResNet)
