@@ -5,7 +5,7 @@
 import torch
 import torch.nn as nn
 import torchvision
-#from torchvision.datasets import Food101
+from torchvision.datasets import Food101
 #import torchvision.transforms as T
 
 import torchvision.models as models
@@ -33,8 +33,8 @@ from torchinfo import summary
 # 2. Setting Device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-'''#3. if using a prebuilt dataset from pytorch, then download using..
-dataset=Food101(root="data",download=True) # only download if its not there, otherwise skip'''
+#3. if using a prebuilt dataset from pytorch, then download using..
+dataset=Food101(root="data",download=True) # only download if its not there, otherwise skip
 
 #4. Fetching the Custom Dataset from the web. SKIP IF ALREADY DONE.
 #custom dataset zip file download from web and extract. 
@@ -46,8 +46,8 @@ custom_zipfile_download.download_extract_kaggle(dataset="kmader/food41",
 #function for re-arranging the whole dataset inside one folder to a structure of 2 folder(train, test) 
 # under the parent folder. (only use this if you are using a pytorch prebuilt dataset.)
 torch_prebuilt_data_folder_format.folder_format(base_dir="data/food-101/images",
-                                                train_file="data/food-101/meta/meta/train.txt",
-                                                test_file="data/food-101/meta/meta/test.txt",
+                                                train_file="data/food-101/meta/train.txt",
+                                                test_file="data/food-101/meta/test.txt",
                                                 train_dir="data/food-101/train",
                                                 test_dir="data/food-101/test")
 
@@ -58,7 +58,7 @@ datasets.traintest_split(input_dir="data/indian-food/indian-food",
                           train_split=0.2)'''
 
 #6. Plotting non transformed(raw) random images from the whole dataset.
-plotting.plot_raw_random("data2/pizza_steak_sushi")
+plotting.plot_raw_random("data/food-101")
 
 #7. Building the Custom CNN model
 
@@ -115,13 +115,13 @@ summary(model=EfficientNet,
         row_settings=["var_names"])'''
 
 # 10. Transforming and plotting the same raw images.
-plotting.plot_transformed_random("data2/pizza_steak_sushi",transform=resnet_transforms)
+plotting.plot_transformed_random("data/food-101",transform=resnet_transforms)
 #plotting.plot_transformed_random("data2/pizza_steak_sushi",transform=efficientnet_transforms)
 
 #11 .Now creating the format for training and testing dataset in order to upload to the dataloader.
 
-resnet_train_data,resnet_test_data=datasets.create_dataset(train_folder="data2/pizza_steak_sushi/train",
-                                             test_folder="data2/pizza_steak_sushi/test",
+resnet_train_data,resnet_test_data=datasets.create_dataset(train_folder="data/food-101/train",
+                                             test_folder="data/food-101/test",
 
                                              train_transform=resnet_transforms,
                                              test_transform=resnet_transforms,
@@ -195,7 +195,7 @@ experiment_configs = [
     {
         'model': ResNet,  # First model
         'optimizer': resnet_opt2,
-        'epochs': 10,  # Number of epochs for model1
+        'epochs': 15,  # Number of epochs for model1
         'name': 'ResNet_Food_Classifying_Exp2'
     }
 ]
@@ -212,30 +212,29 @@ model_runtime.run_time(start_time, end_time, device=device)
 
 #17. confusion matrix for both train and test
 metrics.conf_matrix_for_train(model=ResNet,
-                              image_path="data2/pizza_steak_sushi/train",
+                              image_path="data/food-101/train",
                               train_loader=resnet_train_loader)
 
 metrics.conf_matrix_for_test(model=ResNet,
-                             image_path="data2/pizza_steak_sushi/test",
+                             image_path="data/food-101/test",
                              test_loader=resnet_test_loader)
 
 #18. Train and Test images prediction
-metrics.train_prediction(class_names_parent_path="data2/pizza_steak_sushi/train",model=ResNet,
-                        image_path="data2/pizza_steak_sushi/train",
+metrics.train_prediction(class_names_parent_path="data/food-101/train",model=ResNet,
+                        image_path="data/food-101/train",
                         )
 
-metrics.test_prediction(class_names_parent_path="data2/pizza_steak_sushi/test",model=ResNet,
-                        image_path="data2/pizza_steak_sushi/test",
+metrics.test_prediction(class_names_parent_path="data/food-101/test",model=ResNet,
+                        image_path="data/food-101/test",
                         )
 
 #19. Saving and Loading Model
-torch.save(ResNet.state_dict(), "Food_Classifier.pth")
-
+torch.save(ResNet.state_dict(), "Food-101_Classifier.pth")
 load_model = ResNet
-load_model.load_state_dict(torch.load("Food_Classifier.pth"))
+load_model.load_state_dict(torch.load("Food-101_Classifier.pth"))
 
 #20. Testing the custom image
-metrics.custom_image_plot(class_names_parent_path="data2/pizza_steak_sushi/test",
+metrics.custom_image_plot(class_names_parent_path="data/food-101/test",
                           image_path="data/food-101/pizza.jpg",
                           device=device,
                           model=ResNet)
